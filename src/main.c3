@@ -1,12 +1,22 @@
 module working_title;
 import raylib5;
 import std::io;
+import std::math;
 
 const int SCREENW = 1280;   // Ikkunan leveys
 const int SCREENH = 720;    // Ikkunan korkeus
 
 // Nimetään tyyppi "float[<2>]" uudestaan. "Vec2" on kivempi kirjoittaa.
 typedef Vec2 = float[<2>];
+
+/*
+Yksinkertainen Triangle-tyyppi
+*/
+struct Triangle
+{
+    Vec2 position;
+    float speed;
+}
 
 /*
 Globaalin "state" -muuttujan tyyppi.
@@ -17,6 +27,7 @@ struct State
 {
 	Player player1;
 	Player player2;
+	Triangle triangle;
 }
 
 /*
@@ -31,6 +42,10 @@ State state = {
     .player2 = {
         .position = {SCREENW/2 + 100, SCREENH/2},
         .speed    = 500
+    },
+    .triangle = {
+        .position = {SCREENW/2, 100},
+        .speed    = 200
     },
 };
 
@@ -76,8 +91,9 @@ fn void update()
 
     Player* p1 = &state.player1; // Alias pelaaja 1:stä
     Player* p2 = &state.player2; // Alias pelaaja 2:sta
+    Triangle* tri = &state.triangle; // Alias kolmiosta
 
-        /*
+    /*
     Liikutellaan pelaaja 1:tä (WASD)
     */
 	if (rl::isKeyDown(rl::KEY_W)) p1.position.y  -= dt * p1.speed;
@@ -93,24 +109,36 @@ fn void update()
 	if (rl::isKeyDown(rl::KEY_LEFT))  p2.position.x  -= dt * p2.speed;
 	if (rl::isKeyDown(rl::KEY_RIGHT)) p2.position.x  += dt * p2.speed;
 
-
-
-    //const float PLAYER_RADIUS = 20.0;
-
-    /*  kovat rajat
-    if (p.position.x < PLAYER_RADIUS) p.position.x = PLAYER_RADIUS;
-    if (p.position.x > SCREENW - PLAYER_RADIUS) p.position.x = SCREENW - PLAYER_RADIUS;
-    if (p.position.y < PLAYER_RADIUS) p.position.y = PLAYER_RADIUS;
-    if (p.position.y > SCREENH - PLAYER_RADIUS) p.position.y = SCREENH - PLAYER_RADIUS;
+    /*
+    AI-liike kolmiolle: liiku kohti lähintä pelaajaa
     */
+    // Laske etäisyydet molempiin pelaajiin
+    float dx1 = p1.position.x - tri.position.x;
+    float dy1 = p1.position.y - tri.position.y;
+    float dist1 = math::sqrt(dx1*dx1 + dy1*dy1);
+    
+    float dx2 = p2.position.x - tri.position.x;
+    float dy2 = p2.position.y - tri.position.y;
+    float dist2 = math::sqrt(dx2*dx2 + dy2*dy2);
+    
+    // Valitse lähin pelaaja
+    Vec2 target = (dist1 < dist2) ? p1.position : p2.position;
+    
+    // Liiku kohti valittua pelaajaa
+    float dx = target.x - tri.position.x;
+    float dy = target.y - tri.position.y;
+    float dist = math::sqrt(dx*dx + dy*dy);
+    
+    if (dist > 0.0)
+    {
+        // Normalisoi suunta ja liiku
+        tri.position.x += (dx / dist) * tri.speed * dt;
+        tri.position.y += (dy / dist) * tri.speed * dt;
+    }
 
-     /*
-    Wrap-around efekti: pelaaja tulee toiselta puolelta, kun menee
-    reunan yli. Pelaajan säde on 20, joten pelaaja häviää kokonaan
-    ennen kuin ilmestyy toiselta puolelta.
-    */
     const float PLAYER_RADIUS = 20.0;
-     /*
+    
+    /*
     Wrap-around efekti pelaaja 1:lle
     */
     if (p1.position.x < -PLAYER_RADIUS) p1.position.x = SCREENW + PLAYER_RADIUS;
@@ -125,6 +153,14 @@ fn void update()
     if (p2.position.x > SCREENW + PLAYER_RADIUS) p2.position.x = -PLAYER_RADIUS;
     if (p2.position.y < -PLAYER_RADIUS) p2.position.y = SCREENH + PLAYER_RADIUS;
     if (p2.position.y > SCREENH + PLAYER_RADIUS) p2.position.y = -PLAYER_RADIUS;
+    
+    /*
+    Wrap-around efekti kolmiolle
+    */
+    if (tri.position.x < -PLAYER_RADIUS) tri.position.x = SCREENW + PLAYER_RADIUS;
+    if (tri.position.x > SCREENW + PLAYER_RADIUS) tri.position.x = -PLAYER_RADIUS;
+    if (tri.position.y < -PLAYER_RADIUS) tri.position.y = SCREENH + PLAYER_RADIUS;
+    if (tri.position.y > SCREENH + PLAYER_RADIUS) tri.position.y = -PLAYER_RADIUS;
 }
 
 /*
@@ -139,12 +175,9 @@ fn void draw()
 
     rl::clearBackground({25, 25, 25, 255}); // RGBA-arvo taustavärille
     
-    /*
-    Alias pelaajan paikasta. Tällä kertaa tyyppi on arvo eikä pointteri,
-    sillä meidän ei tarvitse muuttaa pelaajan paikkaa, haluamme vain tietää sen.
-    */
     Vec2 p1_pos = state.player1.position;
     Vec2 p2_pos = state.player2.position;
+    Vec2 tri_pos = state.triangle.position;
 
     // Piirretään punainen ympyrä pelaaja 1:n paikalle
     rl::drawCircle(
@@ -162,6 +195,16 @@ fn void draw()
         rl::BLUE
     );
     
+    // Piirretään keltainen kolmio
+    const float TRI_SIZE = 20.0;
+    rl::drawPoly(
+        {tri_pos.x, tri_pos.y},  // Keskipiste
+        3,                        // 3 kulmaa = kolmio
+        TRI_SIZE,                 // Säde
+        0.0,                      // Rotaatio
+        rl::YELLOW
+    );
+    
     rl::drawFPS(20, 20);
     
     // Näytetään pelaajien koordinaatit
@@ -170,6 +213,9 @@ fn void draw()
     
     String coords2 = string::tformat("Player 2: (%.1f, %.1f)", p2_pos.x, p2_pos.y);
     rl::drawText(coords2.zstr_tcopy(), 20, 80, 20, rl::BLUE);
+    
+    String coords3 = string::tformat("Triangle: (%.1f, %.1f)", tri_pos.x, tri_pos.y);
+    rl::drawText(coords3.zstr_tcopy(), 20, 110, 20, rl::YELLOW);
 }
 
 
@@ -178,4 +224,3 @@ fn void exit()
 {
 	rl::closeWindow();
 }
-
