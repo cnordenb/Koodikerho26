@@ -16,6 +16,7 @@ struct Triangle
 {
     Vec2 position;
     float speed;
+    float rotation;  // Kulma asteina
 }
 
 /*
@@ -45,7 +46,8 @@ State state = {
     },
     .triangle = {
         .position = {SCREENW/2, 100},
-        .speed    = 200
+        .speed    = 200,
+        .rotation = 0.0
     },
 };
 
@@ -134,6 +136,12 @@ fn void update()
         // Normalisoi suunta ja liiku
         tri.position.x += (dx / dist) * tri.speed * dt;
         tri.position.y += (dy / dist) * tri.speed * dt;
+        
+        // Laske rotaatiokulma liikkeen suunnasta
+        // atan2 palauttaa radiaanit, muunnetaan asteiksi
+        // +90 astetta koska oletuksena kolmio osoittaa ylöspäin
+        float angle_rad = (float)math::atan2((double)dy, (double)dx);
+        tri.rotation = angle_rad * 180.0 / math::PI + 115.0;
     }
 
     const float PLAYER_RADIUS = 20.0;
@@ -252,13 +260,13 @@ fn void draw()
         rl::BLUE
     );
     
-    // Piirretään keltainen kolmio
+    // Piirretään keltainen kolmio, joka osoittaa liikkeen suuntaan
     const float TRI_SIZE = 20.0;
     rl::drawPoly(
         {tri_pos.x, tri_pos.y},  // Keskipiste
         3,                        // 3 kulmaa = kolmio
         TRI_SIZE,                 // Säde
-        0.0,                      // Rotaatio
+        state.triangle.rotation,  // Rotaatio liikkeen suuntaan
         rl::YELLOW
     );
     
