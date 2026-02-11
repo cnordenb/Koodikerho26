@@ -115,11 +115,11 @@ fn void update()
     // Laske etäisyydet molempiin pelaajiin
     float dx1 = p1.position.x - tri.position.x;
     float dy1 = p1.position.y - tri.position.y;
-    float dist1 = math::sqrt(dx1*dx1 + dy1*dy1);
+    float dist1 = (float)math::sqrt((double)(dx1*dx1 + dy1*dy1));
     
     float dx2 = p2.position.x - tri.position.x;
     float dy2 = p2.position.y - tri.position.y;
-    float dist2 = math::sqrt(dx2*dx2 + dy2*dy2);
+    float dist2 = (float)math::sqrt((double)(dx2*dx2 + dy2*dy2));
     
     // Valitse lähin pelaaja
     Vec2 target = (dist1 < dist2) ? p1.position : p2.position;
@@ -127,7 +127,7 @@ fn void update()
     // Liiku kohti valittua pelaajaa
     float dx = target.x - tri.position.x;
     float dy = target.y - tri.position.y;
-    float dist = math::sqrt(dx*dx + dy*dy);
+    float dist = (float)math::sqrt((double)(dx*dx + dy*dy));
     
     if (dist > 0.0)
     {
@@ -137,6 +137,63 @@ fn void update()
     }
 
     const float PLAYER_RADIUS = 20.0;
+    
+    /*
+    Törmäystarkistukset: pelaajat eivät voi mennä toistensa läpi
+    */
+    
+    // Pelaaja 1 vs Pelaaja 2
+    float p1p2_dx = p2.position.x - p1.position.x;
+    float p1p2_dy = p2.position.y - p1.position.y;
+    float p1p2_dist = (float)math::sqrt((double)(p1p2_dx*p1p2_dx + p1p2_dy*p1p2_dy));
+    float min_dist = PLAYER_RADIUS * 2;
+    
+    if (p1p2_dist < min_dist && p1p2_dist > 0.0)
+    {
+        // Työnnä pelaajia erilleen
+        double overlap = (double)min_dist - (double)p1p2_dist;
+        double push_x = ((double)p1p2_dx / (double)p1p2_dist) * overlap * 0.5;
+        double push_y = ((double)p1p2_dy / (double)p1p2_dist) * overlap * 0.5;
+        
+        p1.position.x -= (float)push_x;
+        p1.position.y -= (float)push_y;
+        p2.position.x += (float)push_x;
+        p2.position.y += (float)push_y;
+    }
+    
+    // Pelaaja 1 vs Triangle
+    float p1tri_dx = tri.position.x - p1.position.x;
+    float p1tri_dy = tri.position.y - p1.position.y;
+    float p1tri_dist = (float)math::sqrt((double)(p1tri_dx*p1tri_dx + p1tri_dy*p1tri_dy));
+    
+    if (p1tri_dist < min_dist && p1tri_dist > 0.0)
+    {
+        double overlap = (double)min_dist - (double)p1tri_dist;
+        double push_x = ((double)p1tri_dx / (double)p1tri_dist) * overlap * 0.5;
+        double push_y = ((double)p1tri_dy / (double)p1tri_dist) * overlap * 0.5;
+        
+        p1.position.x -= (float)push_x;
+        p1.position.y -= (float)push_y;
+        tri.position.x += (float)push_x;
+        tri.position.y += (float)push_y;
+    }
+    
+    // Pelaaja 2 vs Triangle
+    float p2tri_dx = tri.position.x - p2.position.x;
+    float p2tri_dy = tri.position.y - p2.position.y;
+    float p2tri_dist = (float)math::sqrt((double)(p2tri_dx*p2tri_dx + p2tri_dy*p2tri_dy));
+    
+    if (p2tri_dist < min_dist && p2tri_dist > 0.0)
+    {
+        double overlap = (double)min_dist - (double)p2tri_dist;
+        double push_x = ((double)p2tri_dx / (double)p2tri_dist) * overlap * 0.5;
+        double push_y = ((double)p2tri_dy / (double)p2tri_dist) * overlap * 0.5;
+        
+        p2.position.x -= (float)push_x;
+        p2.position.y -= (float)push_y;
+        tri.position.x += (float)push_x;
+        tri.position.y += (float)push_y;
+    }
     
     /*
     Wrap-around efekti pelaaja 1:lle
